@@ -100,19 +100,23 @@ public class AvlTreeList<E> implements List<E> {
 
     @Override
     public <T> T[] toArray(T[] a) {
-        Object[] thisArray = toArray();
+        Objects.requireNonNull(a);
         
-        if (a.length < size()) {
-            return (T[]) Arrays.copyOf(thisArray, size());
+        int n = size();
+        
+        T[] result = a.length >= n ? a : Arrays.copyOf(a, n);
+        
+        int index = 0;
+        
+        for (E elem : this) {
+            result[index++] = (T) elem;
         }
         
-        System.arraycopy(thisArray, 0, a, 0, size());
-        
-        if (a.length > size()) {
-            a[size()] = null;
+        if (result.length > n) {
+            result[n] = null;
         }
         
-        return a;
+        return result;
     }
 
     @Override
@@ -137,7 +141,13 @@ public class AvlTreeList<E> implements List<E> {
 
     @Override
     public boolean containsAll(Collection<?> c) {
-        throw new UnsupportedOperationException("Not supported yet.");
+        for (Object o : c) {
+            if (!contains((E) o)) {
+                return false;
+            }
+        }
+    
+        return true;
     }
 
     @Override
@@ -167,9 +177,54 @@ public class AvlTreeList<E> implements List<E> {
                                            parts.left(), 
                                            incoming), 
                                        parts.right());
-    
         ++modCount;
         return true;
+    }
+    
+    @Override
+    public boolean equals(Object o) {
+        if (o instanceof List l) {
+            if (size() != l.size()) {
+                return false;
+            }
+            
+            Iterator<E> it1 = iterator();
+            Iterator<E> it2 = l.iterator();
+            
+            while (it1.hasNext()) {
+                if (!it2.hasNext()) {
+                    throw new IllegalStateException("Iterators mismatch.");
+                }
+                
+                E elem1 = it1.next();
+                E elem2 = it2.next();
+                
+                if (!Objects.equals(elem1, elem2)) {
+                    return false;
+                }
+            }
+            
+            if (it2.hasNext()) {
+                throw new IllegalStateException(
+                    "Input iterator has more to offer when this iterator " + 
+                    "of exhausted.");
+            }
+            
+            return true;
+        }
+        
+        return false;
+    }
+
+    @Override
+    public int hashCode() {
+        int hash = 1;
+        
+        for (E elem : this) {
+            hash = 31 * hash + Objects.hashCode(elem);
+        }
+        
+        return hash;
     }
 
     @Override
@@ -184,12 +239,25 @@ public class AvlTreeList<E> implements List<E> {
 
     @Override
     public void replaceAll(UnaryOperator<E> operator) {
-        throw new UnsupportedOperationException("Not supported yet.");
+        ListIterator<E> it = listIterator();
+        
+        while (it.hasNext()) {
+            it.set(operator.apply(it.next()));
+        }
     }
 
     @Override
     public void sort(Comparator<? super E> c) {
-        throw new UnsupportedOperationException("Not supported yet.");
+        Object[] arr = toArray();
+        Arrays.sort((E[]) arr, c);
+        
+        ListIterator<E> it = listIterator();
+        int index = 0;
+        
+        while (it.hasNext()) {
+            it.next();
+            it.set((E) arr[index++]);
+        }
     }
 
     @Override
@@ -199,19 +267,6 @@ public class AvlTreeList<E> implements List<E> {
             root = null;
             ++modCount;
         }
-    }
-    
-    private static <E> void nullify(TreeListNode<E> node) {
-        if (node == null) {
-            return;
-        }
-        
-        nullify(node.left);
-        nullify(node.right);
-        
-        node.left    = null;
-        node.right   = null;
-        node.element = null;
     }
 
     @Override
@@ -251,12 +306,34 @@ public class AvlTreeList<E> implements List<E> {
 
     @Override
     public int indexOf(Object o) {
-        throw new UnsupportedOperationException("Not supported yet.");
+        int index = 0;
+        Iterator<E> it = iterator();
+        
+        while (it.hasNext()) {
+            if (Objects.equals(o, it.next())) {
+                return index;
+            }
+            
+            ++index;
+        }
+        
+        return -1;
     }
 
     @Override
     public int lastIndexOf(Object o) {
-        throw new UnsupportedOperationException("Not supported yet.");
+        int index = size() - 1;
+        ListIterator<E> it = listIterator(size());
+        
+        while (it.hasPrevious()) {
+            if (Objects.equals(o, it.previous())) {
+                return index;
+            }
+            
+            --index;
+        }
+        
+        return -1;
     }
 
     @Override
@@ -328,7 +405,26 @@ public class AvlTreeList<E> implements List<E> {
 
     @Override
     public List<E> reversed() {
-        throw new UnsupportedOperationException();
+        E[] arr = (E[]) toArray();
+        
+        reverse(arr);
+        
+        int index = size() - 1;
+        ListIterator<E> it = listIterator();
+        
+        while (index >= 0) {
+            it.set(arr[index--]);
+        }
+        
+        return this;
+    }
+    
+    private static void reverse(Object[] arr) {
+        for (int i = 0, j = arr.length - 1; i < j; ++i, --j) {
+            Object t = arr[i];
+            arr[i] = arr[j];
+            arr[j] = t;
+        }
     }
 
     @Override
@@ -338,7 +434,19 @@ public class AvlTreeList<E> implements List<E> {
 
     @Override
     public boolean removeIf(Predicate<? super E> filter) {
-        throw new UnsupportedOperationException();
+        ListIterator<E> it = listIterator();
+        boolean removed    = false;
+        
+        while (it.hasNext()) {
+            E elem = it.next();
+            
+            if (filter.test(elem)) {
+                it.remove();
+                removed = true;
+            }
+        }
+        
+        return removed;
     }
 
     @Override
@@ -353,7 +461,22 @@ public class AvlTreeList<E> implements List<E> {
 
     @Override
     public void forEach(Consumer<? super E> action) {
-        throw new UnsupportedOperationException();
+        for (E elem : this) {
+            action.accept(elem);
+        }
+    }
+    
+    private static <E> void nullify(TreeListNode<E> node) {
+        if (node == null) {
+            return;
+        }
+        
+        nullify(node.left);
+        nullify(node.right);
+        
+        node.left    = null;
+        node.right   = null;
+        node.element = null;
     }
     
     protected void removeRange(int fromIndex, int toIndex) {
@@ -555,15 +678,9 @@ public class AvlTreeList<E> implements List<E> {
             return left;
         }
         
-        TreeListNode<E> pivot = minimum(right);
-        right = delete(right, 0);
+        MinimumResult<E> result = extractMinimum(right);
         
-        pivot.left  = null;
-        pivot.right = null;
-        
-        update(pivot);
-        
-        return join(left, pivot, right);
+        return join(left, result.minimum, result.reminder);
     }
     
     private static <E> TreeListNode<E> treeify(Object[] array,
@@ -894,7 +1011,7 @@ public class AvlTreeList<E> implements List<E> {
                 throw new IllegalStateException();
             }
             
-            last.element = e;
+            AvlTreeList.this.set(lastIndex, e);
         }
 
         @Override
@@ -915,5 +1032,36 @@ public class AvlTreeList<E> implements List<E> {
             throw new IndexOutOfBoundsException(
                     "Index: " + index + ", size: " + size());
         }
+    }
+    
+    private static final class MinimumResult<E> {
+        
+        TreeListNode<E> minimum;
+        TreeListNode<E> reminder;
+        
+        MinimumResult(TreeListNode<E> minimum,
+                      TreeListNode<E> reminder) {
+        
+            this.minimum  = minimum;
+            this.reminder = reminder; 
+        }
+    }
+    
+    private static <E> MinimumResult<E> extractMinimum(TreeListNode<E> node) {
+        if (node.left == null) {
+            TreeListNode<E> remainder = node.right;
+            
+            node.right = null;
+            update(node);
+            
+            return new MinimumResult<>(node, remainder);
+        }
+        
+        MinimumResult<E> result = extractMinimum(node.left);
+        
+        node.left = result.reminder;
+        result.reminder = balance(node);
+        
+        return result;
     }
 }
