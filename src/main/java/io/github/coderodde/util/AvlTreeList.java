@@ -764,6 +764,26 @@ public class AvlTreeList<E> implements List<E> {
             checkModification();
             return viewSize;
         }
+        
+        @Override
+        protected void removeRange(int from, int to) {
+            checkModification();
+            Objects.checkFromToIndex(from, to, viewSize);
+            
+            if (from == to) {
+                return;
+            }
+            
+            AvlTreeList.this.removeRange(fromIndex + from, fromIndex + to);
+            
+            structuralModification(from - to);
+        }
+        
+        private void structuralModification(int sizeDelta) {
+            viewSize += sizeDelta;
+            expectedModCount = AvlTreeList.this.modCount;
+            ++modCount;
+        }
     }
 
     private final class TreeIterator implements ListIterator<E> {
