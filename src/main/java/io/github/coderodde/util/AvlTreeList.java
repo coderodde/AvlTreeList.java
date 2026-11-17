@@ -14,7 +14,6 @@ import java.util.ListIterator;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Set;
-import java.util.Spliterator;
 import java.util.function.Consumer;
 import java.util.function.IntFunction;
 import java.util.function.Predicate;
@@ -759,94 +758,11 @@ public class AvlTreeList<E> implements List<E> {
             Objects.checkIndex(index, viewSize);
             return AvlTreeList.this.get(fromIndex + index);
         }
-        
-        @Override
-        public E set(int index, E element) {
-            checkModification();
-            Objects.checkIndex(index, viewSize);
-            return AvlTreeList.this.set(fromIndex + index, element);
-        }
 
         @Override
         public int size() {
             checkModification();
             return viewSize;
-        }
-        
-        @Override
-        public void add(int index, E element) {
-            checkModification();
-            checkPositionIndex(index);
-            AvlTreeList.this.add(fromIndex + index, element);
-            structuralModification(1);
-        }
-        
-        @Override
-        public E remove(int index) {
-            checkModification();
-            Objects.checkIndex(index, viewSize);
-            
-            E removed = AvlTreeList.this.remove(fromIndex + index);
-            
-            structuralModification(-1);
-            
-            return removed;
-        }
-        
-        @Override
-        public boolean addAll(int index, Collection<? extends E> c) {
-            checkModification();
-            checkPositionIndex(index);
-            
-            Object[] array = Objects.requireNonNull(c).toArray();
-            
-            if (array.length == 0) {
-                return false;
-            }
-            
-            List<E> snapshot = new ArrayList<>(array.length);
-            
-            for (Object element : array) {
-                E e = (E) element;
-                snapshot.add(e);
-            }
-            
-            AvlTreeList.this.addAll(fromIndex + index, snapshot);
-            
-            structuralModification(array.length);
-            return true;
-        }
-        
-        @Override
-        protected void removeRange(int from, int to) {
-            checkModification();
-            Objects.checkFromToIndex(from, to, viewSize);
-            
-            if (from == to) {
-                return;
-            }
-            
-            AvlTreeList.this.removeRange(fromIndex + from, fromIndex + to);
-            
-            structuralModification(from - to);
-        }
-        
-        private void checkPositionIndex(int index) {
-            if (index < 0) {
-                throw new IndexOutOfBoundsException(
-                    "index(%d) < 0".formatted(index));
-            }
-            
-            if (index > size()) {
-                throw new IndexOutOfBoundsException(
-                    "index(%d) > size(%d)".formatted(index, size()));
-            }
-        }
-        
-        private void structuralModification(int sizeDelta) {
-            viewSize += sizeDelta;
-            expectedModCount = AvlTreeList.this.modCount;
-            ++modCount;
         }
     }
 
