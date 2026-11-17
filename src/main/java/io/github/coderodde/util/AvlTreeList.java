@@ -142,7 +142,7 @@ public class AvlTreeList<E> implements List<E> {
     @Override
     public boolean containsAll(Collection<?> c) {
         for (Object o : c) {
-            if (!contains((E) o)) {
+            if (!contains(o)) {
                 return false;
             }
         }
@@ -229,14 +229,38 @@ public class AvlTreeList<E> implements List<E> {
 
     @Override
     public boolean removeAll(Collection<?> c) {
-        throw new UnsupportedOperationException("Not supported yet.");
+        Objects.requireNonNull(c);
+        
+        boolean modified = false;
+        Iterator<E> it   = iterator();
+        
+        while (it.hasNext()) {
+            if (c.contains(it.next())) {
+                it.remove();
+                modified = true;
+            }
+        }
+        
+        return modified;
     }
-
+    
     @Override
     public boolean retainAll(Collection<?> c) {
-        throw new UnsupportedOperationException("Not supported yet.");
+        Objects.requireNonNull(c);
+        
+        boolean modified = false;
+        Iterator<E> it   = iterator();
+        
+        while (it.hasNext()) {
+            if (!c.contains(it.next())) {
+                it.remove();
+                modified = true;
+            }
+        }
+        
+        return modified;
     }
-
+    
     @Override
     public void replaceAll(UnaryOperator<E> operator) {
         ListIterator<E> it = listIterator();
@@ -258,12 +282,14 @@ public class AvlTreeList<E> implements List<E> {
             it.next();
             it.set((E) arr[index++]);
         }
+        
+        ++modCount;
     }
 
     @Override
     public void clear() {
         if (root != null) {
-            nullify(root);
+            nullify(root); // Help GC.
             root = null;
             ++modCount;
         }
@@ -351,85 +377,11 @@ public class AvlTreeList<E> implements List<E> {
     public List<E> subList(int fromIndex, int toIndex) {
         return new SubList(fromIndex, toIndex);
     }
-
-    @Override
-    public Spliterator<E> spliterator() {
-        throw new UnsupportedOperationException("Not supported yet.");
-    }
-
-    @Override
-    public void addFirst(E e) {
-        add(0, e);
-    }
-
-    @Override
-    public void addLast(E e) {
-        add(size(), e);
-    }
-
-    @Override
-    public E getFirst() {
-        if (isEmpty()) {
-            throw new NoSuchElementException();
-        }
-        
-        return nodeAt(0).element;
-    }
-
-    @Override
-    public E getLast() {
-        if (isEmpty()) {
-            throw new NoSuchElementException();
-        }
-        
-        return nodeAt(size() - 1).element;
-    }
-
-    @Override
-    public E removeFirst() {
-        if (isEmpty()) {
-            throw new NoSuchElementException();
-        }
-        
-        return remove(0);
-    }
-
-    @Override
-    public E removeLast() {
-        if (isEmpty()) {
-            throw new NoSuchElementException();
-        }
-        
-        return remove(size() - 1);
-    }
-
-    @Override
-    public List<E> reversed() {
-        E[] arr = (E[]) toArray();
-        
-        reverse(arr);
-        
-        int index = size() - 1;
-        ListIterator<E> it = listIterator();
-        
-        while (index >= 0) {
-            it.set(arr[index--]);
-        }
-        
-        return this;
-    }
     
-    private static void reverse(Object[] arr) {
-        for (int i = 0, j = arr.length - 1; i < j; ++i, --j) {
-            Object t = arr[i];
-            arr[i] = arr[j];
-            arr[j] = t;
-        }
-    }
-
     @Override
     public <T> T[] toArray(IntFunction<T[]> generator) {
-        throw new UnsupportedOperationException();
+        Objects.requireNonNull(generator);
+        return toArray(generator.apply(size()));
     }
 
     @Override
@@ -451,12 +403,12 @@ public class AvlTreeList<E> implements List<E> {
 
     @Override
     public Stream<E> stream() {
-        throw new UnsupportedOperationException();
+        return List.super.stream();
     }
 
     @Override
     public Stream<E> parallelStream() {
-        throw new UnsupportedOperationException();
+        return List.super.parallelStream();
     }
 
     @Override
@@ -769,6 +721,7 @@ public class AvlTreeList<E> implements List<E> {
                                          TreeListNode<E> right) {}
 
     private class SubList extends AbstractList<E> {
+        
         private final int fromIndex;
         private int viewSize;
         private int expectedModCount;
@@ -797,17 +750,7 @@ public class AvlTreeList<E> implements List<E> {
 
         @Override
         public void clear() {
-            checkModification();
-            
-            if (viewSize == 0) {
-                return;
-            }
-            
-            AvlTreeList.this.removeRange(fromIndex, fromIndex + viewSize);
-            
-            viewSize = 0;
-            expectedModCount = AvlTreeList.this.modCount;
-            ++modCount;
+            removeRange(0, viewSize);
         }
 
         @Override
@@ -816,11 +759,94 @@ public class AvlTreeList<E> implements List<E> {
             Objects.checkIndex(index, viewSize);
             return AvlTreeList.this.get(fromIndex + index);
         }
+        
+        @Override
+        public E set(int index, E element) {
+            checkModification();
+            Objects.checkIndex(index, viewSize);
+            return AvlTreeList.this.set(fromIndex + index, element);
+        }
 
         @Override
         public int size() {
             checkModification();
             return viewSize;
+        }
+        
+        @Override
+        public void add(int index, E element) {
+            checkModification();
+            checkPositionIndex(index);
+            AvlTreeList.this.add(fromIndex + index, element);
+            structuralModification(1);
+        }
+        
+        @Override
+        public E remove(int index) {
+            checkModification();
+            Objects.checkIndex(index, viewSize);
+            
+            E removed = AvlTreeList.this.remove(fromIndex + index);
+            
+            structuralModification(-1);
+            
+            return removed;
+        }
+        
+        @Override
+        public boolean addAll(int index, Collection<? extends E> c) {
+            checkModification();
+            checkPositionIndex(index);
+            
+            Object[] array = Objects.requireNonNull(c).toArray();
+            
+            if (array.length == 0) {
+                return false;
+            }
+            
+            List<E> snapshot = new ArrayList<>(array.length);
+            
+            for (Object element : array) {
+                E e = (E) element;
+                snapshot.add(e);
+            }
+            
+            AvlTreeList.this.addAll(fromIndex + index, snapshot);
+            
+            structuralModification(array.length);
+            return true;
+        }
+        
+        @Override
+        protected void removeRange(int from, int to) {
+            checkModification();
+            Objects.checkFromToIndex(from, to, viewSize);
+            
+            if (from == to) {
+                return;
+            }
+            
+            AvlTreeList.this.removeRange(fromIndex + from, fromIndex + to);
+            
+            structuralModification(from - to);
+        }
+        
+        private void checkPositionIndex(int index) {
+            if (index < 0) {
+                throw new IndexOutOfBoundsException(
+                    "index(%d) < 0".formatted(index));
+            }
+            
+            if (index > size()) {
+                throw new IndexOutOfBoundsException(
+                    "index(%d) > size(%d)".formatted(index, size()));
+            }
+        }
+        
+        private void structuralModification(int sizeDelta) {
+            viewSize += sizeDelta;
+            expectedModCount = AvlTreeList.this.modCount;
+            ++modCount;
         }
     }
 
