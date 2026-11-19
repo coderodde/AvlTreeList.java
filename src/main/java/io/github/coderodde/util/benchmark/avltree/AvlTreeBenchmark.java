@@ -9,12 +9,6 @@ public final class AvlTreeBenchmark {
     
     private static final int N = 100_000;
     private static final int N_PRELOAD = 150_000;
-
-    private static void preload(List<Integer> list) {
-        for (int i = 0; i < N_PRELOAD; ++i) {
-            list.add(i);
-        }
-    }
     
     private AvlTreeBenchmark() {
         
@@ -25,7 +19,6 @@ public final class AvlTreeBenchmark {
         
         warmup();
         
-        System.out.println();
         System.out.println("Warming up done!");
         System.out.println("Benchmarking...");
         System.out.println();
@@ -57,10 +50,8 @@ public final class AvlTreeBenchmark {
                 "== List: %s".formatted(list.getClass().getSimpleName()));
         }
         
-        int[] addPayload = createRandomAddPayloadIntegers();
-        
-        int[] getPayload = createRandomGetPayloadIntegers(addPayload.length);
-        
+        int[] addPayload    = createRandomAddPayloadIntegers();
+        int[] getPayload    = createRandomGetPayloadIntegers(addPayload.length);
         int[] removePayload = 
             createRandomRemovePayloadIntegers(addPayload.length);
         
@@ -104,7 +95,11 @@ public final class AvlTreeBenchmark {
         
         if (doPrint) {
             System.out.println("remove(int) in %d ms.".formatted(duration));
-            System.out.println("Total time: %d ms".formatted(totalDuration));
+            System.out.println(
+                "Total %s time: %d ms".formatted(
+                    list.getClass().getSimpleName(), 
+                    totalDuration));
+            
             System.out.println();
         }
     }
@@ -142,5 +137,11 @@ public final class AvlTreeBenchmark {
         }
         
         return array;
+    }
+    
+    private static void preload(List<Integer> list) {
+        for (int i = 0; i < N_PRELOAD; ++i) {
+            list.add(i);
+        }
     }
 }

@@ -29,10 +29,11 @@ public class AvlTreeList<E> implements List<E> {
     
     private static final class TreeListNode<E> {
         E element;
-        TreeListNode<E> left;
-        TreeListNode<E> right;
-        int height;
-        int treeSize = 1;
+        TreeListNode<E> left;  // Left subtree.
+        TreeListNode<E> right; // Right subtree.
+        int height;            // The actual height of this node.
+        int treeSize = 1;      // This + the size of the left subtree +
+                               // the size of the right subtree.
         
         private TreeListNode(E element) {
             this.element = element;
